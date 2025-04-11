@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <form method="POST">
+        <div class="form-group">
+            <label for="topic">Enter a topic for your quiz:</label>
+            <input type="text" id="topic" name="topic" required placeholder="e.g. Python programming, World History, etc.">
+        </div>
+        <button type="submit">Generate Quiz</button>
+    </form>
+{% endblock %}
