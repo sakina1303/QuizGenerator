@@ -1,11 +1,120 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <form method="POST">
-        <div class="form-group">
-            <label for="topic">Enter a topic for your quiz:</label>
-            <input type="text" id="topic" name="topic" required placeholder="e.g. Python programming, World History, etc.">
+<div class="container">
+    <header>
+        <h2 style="margin-top: 10px; font-size: 1.1rem;">
+            Generate a quick quiz based on any topic you love!
+        </h2>
+    </header>
+
+    <!-- Flash Message (Optional Error or Info) -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="error">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
         </div>
-        <button type="submit">Generate Quiz</button>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="quiz-form">
+        <div class="form-group">
+            <label for="topic"> Enter a topic:</label>
+            <input 
+                type="text" 
+                id="topic" 
+                name="topic" 
+                required 
+                placeholder="e.g. Python programming, World History, Cricket, Space..."
+            >
+        </div>
+
+        <div class="form-group">
+            <label> Difficulty Level:</label>
+            <div class="difficulty-options">
+                <label class="difficulty-option">
+                    <input type="radio" name="difficulty" value="easy" checked>
+                    <span class="difficulty-label">
+                        <span class="difficulty-icon">🍃</span> Easy
+                    </span>
+                </label>
+                <label class="difficulty-option">
+                    <input type="radio" name="difficulty" value="medium">
+                    <span class="difficulty-label">
+                        <span class="difficulty-icon">🌊</span> Medium
+                    </span>
+                </label>
+                <label class="difficulty-option">
+                    <input type="radio" name="difficulty" value="hard">
+                    <span class="difficulty-label">
+                        <span class="difficulty-icon">🔥</span> Hard
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <button type="submit"> Generate Quiz</button>
+        </div>
     </form>
+</div>
+
+<style>
+    .difficulty-options {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 15px 0;
+    }
+
+    .difficulty-option {
+        flex: 1;
+        text-align: center;
+    }
+
+    .difficulty-option input[type="radio"] {
+        display: none;
+    }
+
+    .difficulty-label {
+        display: block;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f5f5f5;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .difficulty-option input[type="radio"]:checked + .difficulty-label {
+        background: #4285f4;
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .difficulty-icon {
+        display: block;
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+    }
+
+    button[type="submit"] {
+        background: #4285f4;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 15px;
+    }
+
+    button[type="submit"]:hover {
+        background: #3367d6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
 {% endblock %}
