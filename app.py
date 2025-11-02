@@ -10,8 +10,29 @@ app.config.from_pyfile('config.py')
 
 # Configure Gemini
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+# Allow the model to be configured via environment variable for flexibility.
+# If not set, default to a broadly available model name for the Google Generative AI
+# python client. Change this to a different model if you have access to Gemini
+# variants (for example: 'gemini-1.5-pro-latest') and your account supports it.
+# Prefer a Gemini model that's commonly available on many accounts. Use the
+# GOOGLE_MODEL env var to override. The list_models output uses names like
+# "models/gemini-pro-latest"; the client expects the short name (e.g. "gemini-pro-latest").
+MODEL_NAME = os.getenv('GOOGLE_MODEL', 'gemini-pro-latest')
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-pro-latest')
+
+# Normalize model name: if the user copied the full name returned by ListModels
+# (which starts with "models/"), strip that prefix so the client doesn't end up
+# sending "models/models/..." to the server.
+if MODEL_NAME.startswith('models/'):
+    MODEL_NAME = MODEL_NAME.split('/', 1)[1]
+
+try:
+    model = genai.GenerativeModel(MODEL_NAME)
+except Exception:
+    # If model construction fails, fall back to a known Gemini short name.
+    # The real error (unsupported model) will surface during generate_content
+    # and we already added handling that attempts to list available models.
+    model = genai.GenerativeModel('gemini-pro-latest')
 
 def generate_quiz_prompt(topic, num_questions=5):
     return f"""
@@ -101,7 +122,27 @@ def generate_quiz(topic):
         return render_template('quiz.html', **quiz_data)
         
     except Exception as e:
-        return render_template('quiz.html', error=str(e), topic=topic)
+        # If the error is caused by an unsupported/unknown model, attempt to list
+        # available models to aid debugging. Listing may fail if the API key lacks
+        # permissions; handle that gracefully.
+        extra = ''
+        try:
+            models = genai.list_models()
+            # models might be a list of dicts or objects depending on the library
+            names = []
+            for m in models:
+                if isinstance(m, dict) and 'name' in m:
+                    names.append(m['name'])
+                else:
+                    try:
+                        names.append(str(m.name))
+                    except Exception:
+                        names.append(str(m))
+            extra = '\nAvailable models: ' + ', '.join(names)
+        except Exception:
+            extra = '\n(while attempting to list models, listing failed)'
+
+        return render_template('quiz.html', error=f"{e}{extra}", topic=topic)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)  # Using port 5001 to avoid conflicts
