@@ -144,5 +144,5 @@ def generate_quiz(topic):
 
         return render_template('quiz.html', error=f"{e}{extra}", topic=topic)
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)  # Using port 5001 to avoid conflicts
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
