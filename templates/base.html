@@ -3,18 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Generator</title>
+    <title>QAI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <header>
-        <div class="container">
-            <h1>AI Quiz Generator</h1>
-        </div>
-    </header>
-    
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+<body class="page">
+    <div class="page-shell">
+        <header class="app-header">
+            <div class="container header-inner">
+                <div class="brand">
+                    <span class="brand-mark">Q</span>
+                    <div class="brand-copy">
+                        <p class="brand-title">QAI</p>
+                        <p class="brand-subtitle">AI generated quizzes in seconds</p>
+                    </div>
+                </div>
+                <a class="header-cta" href="{{ url_for('index') }}">New quiz</a>
+            </div>
+        </header>
+
+        <main class="container content-area">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="app-footer">
+            <div class="container footer-inner">
+                <span>Built with Flask and Gemini</span>
+                <a href="https://ai.google.dev" target="_blank" rel="noopener">Documentation</a>
+            </div>
+        </footer>
+    </div>
 </body>
 </html>

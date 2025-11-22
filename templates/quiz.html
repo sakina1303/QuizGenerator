@@ -2,45 +2,70 @@
 
 {% block content %}
     {% if error %}
-        <div class="error">
+        <div class="flash is-error">
             <p>Error generating quiz: {{ error }}</p>
-            <p><a href="{{ url_for('index') }}">Try again</a></p>
+            <p><a class="link-inline" href="{{ url_for('index') }}">Try again with another topic</a></p>
+        </div>
+        <div class="quiz-actions">
+            <a class="btn btn-ghost" href="{{ url_for('index') }}">Back to generator</a>
         </div>
     {% else %}
-        <h2>Quiz about: {{ topic }}</h2>
-        <div class="quiz-container">
+        <section class="quiz-header">
+            <p class="eyebrow">Quiz generated</p>
+            <h2>{{ topic }} quiz</h2>
+            <p class="quiz-subtitle">Select an answer to reveal the correct response. Use this set for warm-ups, lightning talks, or self-study.</p>
+        </section>
+
+        <div class="quiz-list">
             {% for question in questions %}
-                <div class="question">
-                    <h3>Q{{ question.number }}. {{ question.text }}</h3>
+                <article class="quiz-card">
+                    <div class="question-header">
+                        <span class="question-index">Q{{ loop.index }}</span>
+                        <p class="question-text">{{ question.text }}</p>
+                    </div>
+
                     <div class="options">
                         {% for option in question.options %}
                             <div class="option">
-                                <input type="radio" 
-                                       id="q{{ question.number }}{{ option.letter }}" 
-                                       name="q{{ question.number }}" 
-                                       value="{{ option.letter }}">
-                                <label for="q{{ question.number }}{{ option.letter }}">
-                                    {{ option.letter }} {{ option.text }}
+                                <input
+                                    class="sr-only"
+                                    type="radio"
+                                    id="q{{ question.number }}{{ option.letter }}"
+                                    name="q{{ question.number }}"
+                                    value="{{ option.letter }}">
+                                <label class="option-label" for="q{{ question.number }}{{ option.letter }}">
+                                    <span class="option-letter">{{ option.letter }}</span>
+                                    <span class="option-body">{{ option.text }}</span>
                                 </label>
                             </div>
                         {% endfor %}
                     </div>
-                    <p class="correct-answer" style="display: none;">
-                        Correct answer: {{ question.answer }}
-                    </p>
-                </div>
+
+                    <div class="answer-pill">
+                        <span class="answer-label">Answer</span>
+                        <span class="answer-value">{{ question.answer }}</span>
+                    </div>
+                </article>
             {% endfor %}
         </div>
-        <a href="{{ url_for('index') }}">Generate another quiz</a>
+
+        <div class="quiz-actions">
+            <a class="btn btn-secondary" href="{{ url_for('index') }}">Create another quiz</a>
+        </div>
     {% endif %}
 
     <script>
-        // Simple JavaScript to show answers when clicked
-        document.querySelectorAll('.option input').forEach(radio => {
-            radio.addEventListener('click', function() {
-                const questionDiv = this.closest('.question');
-                const correctAnswer = questionDiv.querySelector('.correct-answer');
-                correctAnswer.style.display = 'block';
+        const cards = document.querySelectorAll('.quiz-card');
+        cards.forEach(card => {
+            const radios = card.querySelectorAll('input[type="radio"]');
+            const answer = card.querySelector('.answer-pill');
+            if (!answer) {
+                return;
+            }
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    answer.classList.add('is-visible');
+                });
             });
         });
     </script>

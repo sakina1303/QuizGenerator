@@ -1,120 +1,76 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <header>
-        <h2 style="margin-top: 10px; font-size: 1.1rem;">
-            Generate a quick quiz based on any topic you love!
-        </h2>
-    </header>
-
-    <!-- Flash Message (Optional Error or Info) -->
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="error">
-          {% for message in messages %}
-            <p>{{ message }}</p>
-          {% endfor %}
+<section class="hero">
+    <div class="hero-copy">
+        <p class="eyebrow">Instant practice</p>
+        <h2>Design faster quizzes with a smarter assistant</h2>
+        <p class="hero-text">Give us a topic and we will craft five tailored questions ready for classrooms, interviews, or solo study.</p>
+        <div class="hero-highlights">
+            <span class="chip">Adaptive difficulty</span>
+            <span class="chip">Shareable prompts</span>
+            <span class="chip">Answer reveals</span>
         </div>
-      {% endif %}
-    {% endwith %}
+    </div>
+</section>
 
-    <form method="POST" class="quiz-form">
-        <div class="form-group">
-            <label for="topic"> Enter a topic:</label>
-            <input 
-                type="text" 
-                id="topic" 
-                name="topic" 
-                required 
-                placeholder="e.g. Python programming, World History, Cricket, Space..."
-            >
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash is-error">
+      {% for message in messages %}
+        <p>{{ message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<form method="POST" class="card form-card">
+    <div class="form-header">
+        <h2 class="form-title">Build your quiz</h2>
+        <p class="form-subtitle">Be as specific as you like, the model adapts to focus on the details that matter to you.</p>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label" for="topic">Topic</label>
+        <div class="input-wrapper">
+            <input
+                type="text"
+                id="topic"
+                name="topic"
+                class="input-field"
+                required
+                placeholder="Examples: Python decorators, Mughal Empire trade, orbital mechanics, marketing funnels">
         </div>
+        <p class="field-hint">Use a descriptive topic to receive sharper, more contextual questions.</p>
+    </div>
 
-        <div class="form-group">
-            <label> Difficulty Level:</label>
-            <div class="difficulty-options">
-                <label class="difficulty-option">
-                    <input type="radio" name="difficulty" value="easy" checked>
-                    <span class="difficulty-label">
-                        <span class="difficulty-icon">🍃</span> Easy
-                    </span>
-                </label>
-                <label class="difficulty-option">
-                    <input type="radio" name="difficulty" value="medium">
-                    <span class="difficulty-label">
-                        <span class="difficulty-icon">🌊</span> Medium
-                    </span>
-                </label>
-                <label class="difficulty-option">
-                    <input type="radio" name="difficulty" value="hard">
-                    <span class="difficulty-label">
-                        <span class="difficulty-icon">🔥</span> Hard
-                    </span>
-                </label>
-            </div>
+    <div class="field-group">
+        <span class="field-label">Difficulty</span>
+        <div class="radio-group">
+            <label class="radio-tile">
+                <input type="radio" name="difficulty" value="easy" checked>
+                <span class="radio-surface">
+                    <span class="radio-title">Easy</span>
+                    <span class="radio-copy">Warm-up questions and foundational concepts.</span>
+                </span>
+            </label>
+            <label class="radio-tile">
+                <input type="radio" name="difficulty" value="medium">
+                <span class="radio-surface">
+                    <span class="radio-title">Medium</span>
+                    <span class="radio-copy">Scenario-based questions with layered reasoning.</span>
+                </span>
+            </label>
+            <label class="radio-tile">
+                <input type="radio" name="difficulty" value="hard">
+                <span class="radio-surface">
+                    <span class="radio-title">Hard</span>
+                    <span class="radio-copy">Synthesis, trade-offs, and edge-case thinking.</span>
+                </span>
+            </label>
         </div>
+    </div>
 
-        <div style="text-align: center;">
-            <button type="submit"> Generate Quiz</button>
-        </div>
-    </form>
-</div>
-
-<style>
-    .difficulty-options {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        margin: 15px 0;
-    }
-
-    .difficulty-option {
-        flex: 1;
-        text-align: center;
-    }
-
-    .difficulty-option input[type="radio"] {
-        display: none;
-    }
-
-    .difficulty-label {
-        display: block;
-        padding: 10px;
-        border-radius: 8px;
-        background: #f5f5f5;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .difficulty-option input[type="radio"]:checked + .difficulty-label {
-        background: #4285f4;
-        color: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-
-    .difficulty-icon {
-        display: block;
-        font-size: 1.5rem;
-        margin-bottom: 5px;
-    }
-
-    button[type="submit"] {
-        background: #4285f4;
-        color: white;
-        border: none;
-        padding: 12px 25px;
-        border-radius: 25px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-top: 15px;
-    }
-
-    button[type="submit"]:hover {
-        background: #3367d6;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-</style>
+    <button type="submit" class="btn btn-primary">Generate quiz</button>
+</form>
 {% endblock %}
