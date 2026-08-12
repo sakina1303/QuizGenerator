@@ -22,9 +22,14 @@ def normalize_model_name(name):
     return name
 
 
+_model = None
+
+
 def load_model():
     candidates = [
         os.getenv('GOOGLE_MODEL'),
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
         'gemini-1.5-flash',
         'gemini-1.5-pro',
         'gemini-pro-latest',
@@ -45,7 +50,13 @@ def load_model():
     return None
 
 
-model = load_model()
+def get_model():
+    global _model
+
+    if _model is None:
+        _model = load_model()
+
+    return _model
 
 def generate_quiz_prompt(topic, difficulty='medium', num_questions=5):
     return f"""
@@ -144,6 +155,7 @@ def index():
 @app.route('/quiz/<topic>')
 def generate_quiz(topic):
     difficulty = request.args.get('difficulty', 'medium')
+    model = get_model()
 
     if not GOOGLE_API_KEY or model is None:
         quiz_data = build_fallback_quiz(topic)

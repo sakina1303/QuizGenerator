@@ -46,7 +46,8 @@ A web application that generates quizzes on any topic using Google's Gemini AI.
 
 This app uses Google's Generative AI (Gemini). You can control which model is used
 by setting the `GOOGLE_MODEL` environment variable. If it is not set, the app
-will try `gemini-1.5-flash`, `gemini-1.5-pro`, then `gemini-pro-latest`.
+will try `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-flash`,
+`gemini-1.5-pro`, then `gemini-pro-latest`.
 
 Notes and tips:
 - The API may return model names prefixed with `models/` (for example `models/gemini-pro-latest`).
@@ -90,6 +91,8 @@ Deployment
 - Set `GOOGLE_API_KEY` as a secret environment variable in your hosting provider
    so the deployed app can generate quizzes without storing the key in GitHub.
 - Keep `.env` local only; use `.env.example` as the template for sharing config.
+- On Vercel, set `GOOGLE_API_KEY` under Project Settings > Environment Variables
+   and redeploy after saving it.
 
 
 ## License
