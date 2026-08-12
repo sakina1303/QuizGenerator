@@ -45,8 +45,8 @@ A web application that generates quizzes on any topic using Google's Gemini AI.
 ## Model configuration
 
 This app uses Google's Generative AI (Gemini). You can control which model is used
-by setting the `GOOGLE_MODEL` environment variable (the code will default to
-`gemini-pro-latest` if not set).
+by setting the `GOOGLE_MODEL` environment variable. If it is not set, the app
+will try `gemini-1.5-flash`, `gemini-1.5-pro`, then `gemini-pro-latest`.
 
 Notes and tips:
 - The API may return model names prefixed with `models/` (for example `models/gemini-pro-latest`).
@@ -59,7 +59,7 @@ Notes and tips:
 Quick commands
 - To set the model temporarily in zsh:
 ```bash
-export GOOGLE_MODEL=gemini-pro-latest
+export GEMINI_MODEL=gemini-1.5-flash
 ```
 
 - To run the app using the project's virtualenv (recommended):
@@ -85,6 +85,11 @@ print([getattr(m, 'name', m.get('name', str(m))) if hasattr(m, 'get') or hasattr
 Security
 - Do NOT commit your `.env` with API keys. If a key has been exposed, rotate it
    in Google Cloud immediately.
+
+Deployment
+- Set `GOOGLE_API_KEY` as a secret environment variable in your hosting provider
+   so the deployed app can generate quizzes without storing the key in GitHub.
+- Keep `.env` local only; use `.env.example` as the template for sharing config.
 
 
 ## License

@@ -8,35 +8,49 @@ load_dotenv()
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 
-# Configure Gemini
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-# Allow the model to be configured via environment variable for flexibility.
-# If not set, default to a broadly available model name for the Google Generative AI
-# python client. Change this to a different model if you have access to Gemini
-# variants (for example: 'gemini-1.5-pro-latest') and your account supports it.
-# Prefer a Gemini model that's commonly available on many accounts. Use the
-# GOOGLE_MODEL env var to override. The list_models output uses names like
-# "models/gemini-pro-latest"; the client expects the short name (e.g. "gemini-pro-latest").
-MODEL_NAME = os.getenv('GOOGLE_MODEL', 'gemini-pro-latest')
-genai.configure(api_key=GOOGLE_API_KEY)
 
-# Normalize model name: if the user copied the full name returned by ListModels
-# (which starts with "models/"), strip that prefix so the client doesn't end up
-# sending "models/models/..." to the server.
-if MODEL_NAME.startswith('models/'):
-    MODEL_NAME = MODEL_NAME.split('/', 1)[1]
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
 
-try:
-    model = genai.GenerativeModel(MODEL_NAME)
-except Exception:
-    # If model construction fails, fall back to a known Gemini short name.
-    # The real error (unsupported model) will surface during generate_content
-    # and we already added handling that attempts to list available models.
-    model = genai.GenerativeModel('gemini-pro-latest')
 
-def generate_quiz_prompt(topic, num_questions=5):
+def normalize_model_name(name):
+    if not name:
+        return ''
+    if name.startswith('models/'):
+        return name.split('/', 1)[1]
+    return name
+
+
+def load_model():
+    candidates = [
+        os.getenv('GOOGLE_MODEL'),
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro-latest',
+    ]
+    seen = set()
+
+    for candidate in candidates:
+        model_name = normalize_model_name(candidate)
+        if not model_name or model_name in seen:
+            continue
+        seen.add(model_name)
+
+        try:
+            return genai.GenerativeModel(model_name)
+        except Exception:
+            continue
+
+    return None
+
+
+model = load_model()
+
+def generate_quiz_prompt(topic, difficulty='medium', num_questions=5):
     return f"""
     Generate a {num_questions}-question multiple choice quiz about {topic}.
+    Aim for {difficulty} difficulty.
     For each question:
     - Provide 4 possible answers (a, b, c, d)
     - Mark the correct answer with (Correct)
@@ -50,6 +64,46 @@ def generate_quiz_prompt(topic, num_questions=5):
     Ensure the quiz is challenging but fair.
     Return only the quiz content, no additional commentary.
     """
+
+
+def build_fallback_quiz(topic, num_questions=5):
+    templates = [
+        'What is the best starting point for learning about {topic}?',
+        'Which idea is most closely related to {topic}?',
+        'Which example would best illustrate {topic}?',
+        'What is a common mistake people make when studying {topic}?',
+        'Which option best summarizes the core idea of {topic}?',
+    ]
+
+    fallback_questions = []
+    answers = ['a', 'b', 'c', 'd', 'a']
+
+    for index in range(num_questions):
+        fallback_questions.append({
+            'number': index + 1,
+            'text': templates[index % len(templates)].format(topic=topic),
+            'options': [
+                {'letter': 'a', 'text': f'A broad overview of {topic}.'},
+                {'letter': 'b', 'text': f'A detail that is usually unrelated to {topic}.'},
+                {'letter': 'c', 'text': f'A practical example of {topic} in use.'},
+                {'letter': 'd', 'text': f'A deeper edge case connected to {topic}.'},
+            ],
+            'answer': answers[index % len(answers)],
+        })
+
+    return {
+        'topic': topic,
+        'questions': fallback_questions,
+    }
+
+
+def render_quiz(topic, questions, quiz_source):
+    return render_template(
+        'quiz.html',
+        topic=topic,
+        questions=questions,
+        quiz_source=quiz_source,
+    )
 
 def parse_quiz_response(response):
     questions = []
@@ -83,13 +137,20 @@ def parse_quiz_response(response):
 def index():
     if request.method == 'POST':
         topic = request.form['topic']
-        return redirect(url_for('generate_quiz', topic=topic))
+        difficulty = request.form.get('difficulty', 'medium')
+        return redirect(url_for('generate_quiz', topic=topic, difficulty=difficulty))
     return render_template('index.html')
 
 @app.route('/quiz/<topic>')
 def generate_quiz(topic):
+    difficulty = request.args.get('difficulty', 'medium')
+
+    if not GOOGLE_API_KEY or model is None:
+        quiz_data = build_fallback_quiz(topic)
+        return render_quiz(topic, quiz_data['questions'], 'Offline fallback')
+
     try:
-        prompt = generate_quiz_prompt(topic)
+        prompt = generate_quiz_prompt(topic, difficulty=difficulty)
         response = model.generate_content(prompt)
         
         if not response.text:
@@ -108,41 +169,22 @@ def generate_quiz(topic):
                     'number': i+1,
                     'text': q['question'],
                     'options': [
-                        {'letter': 'a', 'text': q['options'][0]},
-                        {'letter': 'b', 'text': q['options'][1]},
-                        {'letter': 'c', 'text': q['options'][2]},
-                        {'letter': 'd', 'text': q['options'][3]}
+                        {'letter': 'a', 'text': (q['options'][0] if len(q['options']) > 0 else 'Option A')},
+                        {'letter': 'b', 'text': (q['options'][1] if len(q['options']) > 1 else 'Option B')},
+                        {'letter': 'c', 'text': (q['options'][2] if len(q['options']) > 2 else 'Option C')},
+                        {'letter': 'd', 'text': (q['options'][3] if len(q['options']) > 3 else 'Option D')}
                     ],
-                    'answer': q['answer']
+                    'answer': q['answer'] or 'a'
                 }
                 for i, q in enumerate(questions)
             ]
         }
             
-        return render_template('quiz.html', **quiz_data)
+        return render_quiz(topic, quiz_data['questions'], 'Gemini')
         
     except Exception as e:
-        # If the error is caused by an unsupported/unknown model, attempt to list
-        # available models to aid debugging. Listing may fail if the API key lacks
-        # permissions; handle that gracefully.
-        extra = ''
-        try:
-            models = genai.list_models()
-            # models might be a list of dicts or objects depending on the library
-            names = []
-            for m in models:
-                if isinstance(m, dict) and 'name' in m:
-                    names.append(m['name'])
-                else:
-                    try:
-                        names.append(str(m.name))
-                    except Exception:
-                        names.append(str(m))
-            extra = '\nAvailable models: ' + ', '.join(names)
-        except Exception:
-            extra = '\n(while attempting to list models, listing failed)'
-
-        return render_template('quiz.html', error=f"{e}{extra}", topic=topic)
+        quiz_data = build_fallback_quiz(topic)
+        return render_quiz(topic, quiz_data['questions'], 'Offline fallback')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

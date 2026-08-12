@@ -1,3 +1,5 @@
+import os
+
 # Flask configuration
-DEBUG = True
-SECRET_KEY = 'your-secret-key-here'  # Change this for production
+DEBUG = os.getenv('FLASK_DEBUG', 'false').lower() in {'1', 'true', 'yes'}
+SECRET_KEY = os.getenv('SECRET_KEY', 'change-me-in-production')
