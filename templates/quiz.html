@@ -10,13 +10,13 @@
 {% else %}
 <section class="session-hero">
     <div class="container session-hero-inner">
-        <a class="back-link" href="{{ url_for('index') }}#builder"><span aria-hidden="true">←</span> Back to studio</a>
+        <a class="back-link" href="{{ url_for('index') }}#{% if source %}notes-builder{% else %}builder{% endif %}"><span aria-hidden="true">←</span> Back to studio</a>
         <div class="session-heading"><div><p class="micro-label"><span class="status-dot"></span> YOUR SESSION IS READY</p><h1>{{ topic }}</h1><p>{{ quiz.summary or 'A fresh set of questions, created just for you.' }}</p></div><div class="session-stamp" aria-hidden="true"><span>QAI</span><i>✳</i></div></div>
-        <div class="session-meta"><span>✳ &nbsp;{{ count }} questions</span><span>◈ &nbsp;{{ difficulty|capitalize }} level</span><span>✦ &nbsp;AI study coach</span></div>
+        <div class="session-meta"><span>✳ &nbsp;{{ count }} questions</span><span>◈ &nbsp;{{ difficulty|capitalize }} level</span><span>✦ &nbsp;AI study coach</span>{% if source %}<span>▤ &nbsp;From {{ source.name }}</span>{% endif %}</div>
     </div>
 </section>
 
-<div class="container quiz-layout" id="quiz-app" data-topic="{{ topic }}" data-difficulty="{{ difficulty }}" data-practice-url="{{ url_for('generate_quiz', topic=topic) }}" data-next-topics='{{ quiz.next_topics|tojson }}'>
+<div class="container quiz-layout" id="quiz-app" data-topic="{{ topic }}" data-difficulty="{{ difficulty }}" data-source-kind="{{ 'notes' if source else 'topic' }}" data-practice-url="{{ url_for('generate_quiz', topic=topic) if not source else '' }}" data-next-topics='{{ quiz.next_topics|tojson }}'>
     <aside class="session-sidebar" aria-label="Quiz progress">
         <div class="sidebar-card">
             <p class="sidebar-overline">YOUR PROGRESS</p>
@@ -27,7 +27,7 @@
             </div>
             <div class="sidebar-divider"></div>
             <div class="session-timer"><span>SESSION TIME</span><strong id="session-time">00:00</strong></div>
-            <button type="button" class="share-link" id="share-link">↗ &nbsp; Copy session setup</button>
+            {% if source %}<p class="source-session-note">Notes are not saved. Reupload the file for another quiz.</p>{% else %}<button type="button" class="share-link" id="share-link">↗ &nbsp; Copy session setup</button>{% endif %}
         </div>
         <div class="sidebar-note"><span>✦</span><p><strong>Take your time.</strong> Your study coach will connect the dots after you finish.</p></div>
     </aside>
@@ -47,7 +47,7 @@
                             {% endfor %}
                         </div>
                     </fieldset>
-                    <div class="answer-review" hidden><span class="review-kicker">THE TAKEAWAY</span><p>{{ question.explanation }}</p><small>Study focus: {{ question.study_tip }}</small></div>
+                    <div class="answer-review" hidden><span class="review-kicker">THE TAKEAWAY</span><p>{{ question.explanation }}</p><small>Study focus: {{ question.study_tip }}</small>{% if source %}<div class="source-citation"><strong>{{ question.source_ref }} · {{ source.name }}</strong><blockquote>“{{ question.source_quote }}”</blockquote></div>{% endif %}<div class="tutor-panel"><div class="tutor-heading"><span>✦ AI TUTOR</span><strong>Still curious about this answer?</strong></div><div class="tutor-actions"><button type="button" data-tutor="simple">Explain simply</button><button type="button" data-tutor="example">Give an example</button><button type="button" data-tutor="hint">Show the reasoning</button></div><div class="tutor-form"><label class="sr-only" for="tutor-q-{{ question.number }}">Ask about question {{ question.number }}</label><input id="tutor-q-{{ question.number }}" type="text" maxlength="300" placeholder="Ask a follow-up question..."><button type="button" class="tutor-ask">Ask ↗</button></div><div class="tutor-messages" aria-live="polite"></div></div></div>
                 </article>
                 {% endfor %}
             </div>
@@ -58,11 +58,11 @@
             <div class="results-top"><span class="results-spark" aria-hidden="true">✳</span><p class="eyebrow">YOUR LEARNING SNAPSHOT</p><h2 id="result-title">Nice work.</h2><p id="result-subtitle"></p><div class="result-score"><strong id="score-number">0/0</strong><span id="score-percent">0%</span></div></div>
             <div class="coach-section"><div class="coach-heading"><span class="coach-heading-icon">✦</span><div><p class="eyebrow">AI STUDY COACH</p><h3>Your next best moves</h3></div></div><p class="coach-intro" id="coach-intro"></p><div class="recommendation-list" id="recommendations"></div></div>
             <section class="mistake-section" id="mistake-review" aria-labelledby="mistake-heading"><p class="eyebrow">THE REVIEW</p><h3 id="mistake-heading">What to revisit</h3><p class="mistake-intro" id="mistake-intro"></p><div class="mistake-list" id="mistake-list"></div></section>
-            <div class="result-actions"><button type="button" class="button button-lime" id="review-mistakes">Review my mistakes <span aria-hidden="true">↓</span></button><a class="button button-outline" id="focused-practice" href="{{ url_for('generate_quiz', topic=topic, difficulty=difficulty, count=5) }}">Practice weak spots <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ request.url }}">Generate a new set</a><button type="button" class="text-button" id="retry-button">Retry this set</button></div>
+            <div class="result-actions"><button type="button" class="button button-lime" id="review-mistakes">Review my mistakes <span aria-hidden="true">↓</span></button>{% if source %}<a class="button button-outline" id="focused-practice" href="{{ url_for('index') }}#notes-builder">Reupload notes to practise <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ url_for('index') }}#notes-builder">Create another from notes</a>{% else %}<a class="button button-outline" id="focused-practice" href="{{ url_for('generate_quiz', topic=topic, difficulty=difficulty, count=5) }}">Practice weak spots <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ request.url }}">Generate a new set</a>{% endif %}<button type="button" class="text-button" id="retry-button">Retry this set</button></div>
         </section>
     </div>
 </div>
 {% endif %}
 {% endblock %}
 
-{% block scripts %}{% if not error %}<script src="{{ url_for('static', filename='quiz.js') }}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% if not error %}<script src="{{ url_for('static', filename='progress.js') }}" defer></script><script src="{{ url_for('static', filename='quiz.js') }}" defer></script>{% endif %}{% endblock %}

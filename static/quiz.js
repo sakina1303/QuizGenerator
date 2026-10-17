@@ -10,6 +10,7 @@ const finishHint = document.querySelector('#finish-hint');
 const finishCard = document.querySelector('.finish-card');
 const timerLabel = document.querySelector('#session-time');
 const results = document.querySelector('#results');
+const sourceKind = app.dataset.sourceKind || 'topic';
 let seconds = 0;
 let finished = false;
 let timer;
@@ -39,7 +40,9 @@ function updateProgress() {
   });
 }
 
-form.addEventListener('change', updateProgress);
+form.addEventListener('change', (event) => {
+  if (event.target.matches('input[type="radio"]')) updateProgress();
+});
 updateProgress();
 
 function addRecommendation(index, title, detail) {
@@ -79,8 +82,70 @@ function addReview(card, picked, showSelected = true) {
   item.append(label, question);
   if (showSelected) item.append(selected);
   item.append(correct, explanation, tip);
+  const source = card.querySelector('.source-citation');
+  if (source) {
+    const citation = document.createElement('div');
+    citation.className = 'mistake-source';
+    citation.textContent = `${source.querySelector('strong').textContent}: ${source.querySelector('blockquote').textContent}`;
+    item.append(citation);
+  }
   document.querySelector('#mistake-list').append(item);
 }
+
+async function askTutor(card, mode, message = '') {
+  if (!finished) return;
+  const panel = card.querySelector('.tutor-panel');
+  const controls = panel.querySelectorAll('button, input');
+  controls.forEach((control) => { control.disabled = true; });
+  const feed = panel.querySelector('.tutor-messages');
+  const status = document.createElement('p');
+  status.className = 'tutor-status';
+  status.textContent = 'Tutor is thinking…';
+  feed.append(status);
+  const selected = selectedAnswer(card);
+  const correct = card.querySelector(`input[value="${card.dataset.answer}"]`);
+  const payload = {
+    mode, message,
+    question: card.querySelector('legend').textContent,
+    picked: selected?.closest('.answer-choice').querySelector('.answer-text').textContent || '',
+    answer: correct.closest('.answer-choice').querySelector('.answer-text').textContent,
+    explanation: card.querySelector('.answer-review > p').textContent,
+    concept: card.dataset.concept,
+    source_quote: card.querySelector('.source-citation blockquote')?.textContent || '',
+  };
+  try {
+    const response = await fetch('/api/tutor', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    status.className = response.ok ? 'tutor-reply' : 'tutor-error';
+    status.textContent = response.ok ? data.reply : (data.error || 'Tutor is unavailable. Try again.');
+  } catch {
+    status.className = 'tutor-error';
+    status.textContent = 'Tutor is unavailable. Check your connection and try again.';
+  } finally {
+    controls.forEach((control) => { control.disabled = false; });
+    panel.querySelector('.tutor-form input').value = '';
+  }
+}
+
+cards.forEach((card) => {
+  card.querySelectorAll('[data-tutor]').forEach((button) => {
+    button.addEventListener('click', () => askTutor(card, button.dataset.tutor));
+  });
+  const ask = () => {
+    const message = card.querySelector('.tutor-form input').value.trim();
+    if (message) askTutor(card, 'ask', message);
+  };
+  card.querySelector('.tutor-ask').addEventListener('click', ask);
+  card.querySelector('.tutor-form input').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      ask();
+    }
+  });
+});
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -93,13 +158,15 @@ form.addEventListener('submit', (event) => {
   clearInterval(timer);
   let score = 0;
   const missed = [];
+  const masteryAnswers = [];
   const reviewList = document.querySelector('#mistake-list');
   reviewList.replaceChildren();
   cards.forEach((card) => {
     const picked = selectedAnswer(card);
     const isCorrect = picked.value === card.dataset.answer;
     if (isCorrect) score += 1;
-    else {
+    masteryAnswers.push({ concept: card.dataset.concept, correct: isCorrect });
+    if (!isCorrect) {
       missed.push({ concept: card.dataset.concept, tip: card.dataset.tip });
       addReview(card, picked);
     }
@@ -153,13 +220,15 @@ form.addEventListener('submit', (event) => {
     topics.slice(0, 3).forEach((topic, index) => addRecommendation(index + 1, topic, 'Make this the focus of your next study session.'));
     focus = `Explore ${topics.slice(0, 2).join(' and ')}`;
   }
-  const practiceUrl = new URL(app.dataset.practiceUrl, window.location.origin);
-  practiceUrl.searchParams.set('difficulty', app.dataset.difficulty);
-  practiceUrl.searchParams.set('count', '5');
-  practiceUrl.searchParams.set('focus', focus.slice(0, 230));
   const practice = document.querySelector('#focused-practice');
-  practice.href = practiceUrl.toString();
-  if (score === total) practice.firstChild.textContent = 'Explore a new direction ';
+  if (sourceKind !== 'notes') {
+    const practiceUrl = new URL(app.dataset.practiceUrl, window.location.origin);
+    practiceUrl.searchParams.set('difficulty', app.dataset.difficulty);
+    practiceUrl.searchParams.set('count', '5');
+    practiceUrl.searchParams.set('focus', focus.slice(0, 230));
+    practice.href = practiceUrl.toString();
+    if (score === total) practice.firstChild.textContent = 'Explore a new direction ';
+  }
   results.hidden = false;
   results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -168,6 +237,7 @@ form.addEventListener('submit', (event) => {
     const next = [{ topic: app.dataset.topic, score, total, date: new Date().toISOString() }, ...(Array.isArray(history) ? history : [])].slice(0, 8);
     localStorage.setItem('qai_sessions_v1', JSON.stringify(next));
   } catch { /* Storage is optional. */ }
+  window.QAIProgress?.recordQuiz(app.dataset.topic, masteryAnswers, sourceKind);
 });
 
 document.querySelector('#review-mistakes').addEventListener('click', () => {
@@ -182,6 +252,7 @@ document.querySelector('#retry-button').addEventListener('click', () => {
   cards.forEach((card) => {
     card.classList.remove('is-reviewed');
     card.querySelector('.answer-review').hidden = true;
+    card.querySelector('.tutor-messages').replaceChildren();
     card.querySelectorAll('input[type="radio"]').forEach((input) => {
       input.checked = false;
       input.disabled = false;
@@ -196,7 +267,7 @@ document.querySelector('#retry-button').addEventListener('click', () => {
   cards[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
-document.querySelector('#share-link').addEventListener('click', async (event) => {
+document.querySelector('#share-link')?.addEventListener('click', async (event) => {
   const button = event.currentTarget;
   const original = button.textContent;
   try {

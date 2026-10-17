@@ -3,3 +3,4 @@ Werkzeug==2.3.8
 gunicorn==26.2.0
 python-dotenv==1.0.0
 requests==2.32.5
+pypdf==6.21.0

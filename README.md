@@ -11,10 +11,22 @@ learning path using the Gemini API.
 - Get next-step recommendations based on the concepts missed, or related topics
   when the set is complete.
 - Start targeted follow-up practice and see recent scores saved in this browser.
+- Ask the AI tutor to simplify an answer, give an example, show its reasoning, or
+  answer a follow-up question after completing a quiz.
+- Track concepts across quizzes in a browser-local learning map with suggested
+  revision dates and direct practice links.
+- Upload a text-based PDF, TXT, or Markdown file to make a quiz from your own
+  notes. Each answer includes a checked excerpt and page or section reference.
 
-Recent scores are stored in local browser storage. No account or database is
-required, and the session setup link generates a new set rather than sharing
-the exact questions.
+Recent scores and the learning map are stored in local browser storage on the
+current device. No account or database is required. Uploaded notes are read in
+memory and sent to Gemini to generate the quiz; the app does not save the file.
+Notes quizzes need a new upload for another generated set. Topic quiz setup
+links generate a new set rather than sharing the exact questions.
+
+Notes files are limited to 2 MB, text-based PDFs to 20 pages, and extracted
+content to 28,000 characters. Scanned PDFs without selectable text are not
+supported.
 
 ## Run locally
 
