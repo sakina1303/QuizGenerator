@@ -1,9 +1,6 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-# Ensure default model if not set externally
-os.environ.setdefault('GOOGLE_MODEL', 'gemini-pro-latest')
-
 import app
 
 if __name__ == '__main__':

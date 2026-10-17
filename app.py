@@ -1,202 +1,144 @@
-from flask import Flask, render_template, request, redirect, url_for
-import google.generativeai as genai
+import logging
 import os
+import re
+from urllib.parse import quote
+
 from dotenv import load_dotenv
+from flask import Flask, redirect, render_template, request, url_for
+import requests
 
 load_dotenv()
-
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
+logger = logging.getLogger(__name__)
 
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+# Model construction is local and cannot tell whether a project has quota.
+DEFAULT_MODELS = (
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+)
 
 
-def normalize_model_name(name):
-    if not name:
-        return ''
-    if name.startswith('models/'):
-        return name.split('/', 1)[1]
-    return name
+def model_candidates():
+    names = (os.getenv('GOOGLE_MODEL', ''), *DEFAULT_MODELS)
+    return list(dict.fromkeys(
+        name.removeprefix('models/').strip()
+        for name in names if name and name.strip()
+    ))
 
-
-_model = None
-
-
-def load_model():
-    candidates = [
-        os.getenv('GOOGLE_MODEL'),
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-pro-latest',
-    ]
-    seen = set()
-
-    for candidate in candidates:
-        model_name = normalize_model_name(candidate)
-        if not model_name or model_name in seen:
-            continue
-        seen.add(model_name)
-
-        try:
-            return genai.GenerativeModel(model_name)
-        except Exception:
-            continue
-
-    return None
-
-
-def get_model():
-    global _model
-
-    if _model is None:
-        _model = load_model()
-
-    return _model
 
 def generate_quiz_prompt(topic, difficulty='medium', num_questions=5):
-    return f"""
-    Generate a {num_questions}-question multiple choice quiz about {topic}.
-    Aim for {difficulty} difficulty.
-    For each question:
-    - Provide 4 possible answers (a, b, c, d)
-    - Mark the correct answer with (Correct)
-    - Format each question like this:
-        Q1. [Question text]
-        a) [Option 1]
-        b) [Option 2]
-        c) [Option 3]
-        d) [Option 4]
-        Answer: [Correct letter]
-    Ensure the quiz is challenging but fair.
-    Return only the quiz content, no additional commentary.
-    """
+    return f"""Generate exactly {num_questions} multiple-choice questions about {topic}.
+Difficulty: {difficulty}. Each question must have four plausible options and one
+unambiguous correct answer. Use this format exactly, with no introduction:
+Q1. Question text
+a) Option A
+b) Option B
+c) Option C
+d) Option D
+Answer: a
+Repeat for all questions. Vary the position of the correct answer."""
 
 
-def build_fallback_quiz(topic, num_questions=5):
-    templates = [
-        'What is the best starting point for learning about {topic}?',
-        'Which idea is most closely related to {topic}?',
-        'Which example would best illustrate {topic}?',
-        'What is a common mistake people make when studying {topic}?',
-        'Which option best summarizes the core idea of {topic}?',
-    ]
-
-    fallback_questions = []
-    answers = ['a', 'b', 'c', 'd', 'a']
-
-    for index in range(num_questions):
-        fallback_questions.append({
-            'number': index + 1,
-            'text': templates[index % len(templates)].format(topic=topic),
-            'options': [
-                {'letter': 'a', 'text': f'A broad overview of {topic}.'},
-                {'letter': 'b', 'text': f'A detail that is usually unrelated to {topic}.'},
-                {'letter': 'c', 'text': f'A practical example of {topic} in use.'},
-                {'letter': 'd', 'text': f'A deeper edge case connected to {topic}.'},
-            ],
-            'answer': answers[index % len(answers)],
-        })
-
-    return {
-        'topic': topic,
-        'questions': fallback_questions,
-    }
-
-
-def render_quiz(topic, questions, quiz_source):
-    return render_template(
-        'quiz.html',
-        topic=topic,
-        questions=questions,
-        quiz_source=quiz_source,
-    )
-
-def parse_quiz_response(response):
+def parse_quiz_response(text, expected=5):
     questions = []
-    current_question = {}
-    
-    for line in response.text.split('\n'):
-        line = line.strip()
-        if line.startswith('Q'):
-            if current_question:
-                questions.append(current_question)
-            current_question = {
-                'question': line[line.find('.')+1:].strip(),
-                'options': [],
-                'answer': ''
-            }
-        elif line and line[0].lower() in ['a', 'b', 'c', 'd']:
-            option = line[line.find(')')+1:].strip()
+    current = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        question_match = re.match(r'^Q\s*(\d+)\s*[.)]\s*(.+)$', line, re.I)
+        option_match = re.match(r'^([a-d])\s*[).]\s*(.+)$', line, re.I)
+        answer_match = re.match(r'^Answer\s*:\s*([a-d])\b', line, re.I)
+        if question_match:
+            if current:
+                questions.append(current)
+            current = {'text': question_match.group(2), 'options': [], 'answer': ''}
+        elif current and option_match:
+            letter, option = option_match.groups()
             if '(Correct)' in option:
+                current['answer'] = letter.lower()
                 option = option.replace('(Correct)', '').strip()
-                current_question['answer'] = line[0].lower()
-            current_question['options'].append(option)
-        elif line.lower().startswith('answer:'):
-            current_question['answer'] = line.split(':')[1].strip().lower()[0]
-    
-    if current_question:
-        questions.append(current_question)
-    
+            current['options'].append({'letter': letter.lower(), 'text': option})
+        elif current and answer_match:
+            current['answer'] = answer_match.group(1).lower()
+    if current:
+        questions.append(current)
+
+    if len(questions) != expected or any(
+        len(q['options']) != 4
+        or [option['letter'] for option in q['options']] != list('abcd')
+        or q['answer'] not in 'abcd'
+        for q in questions
+    ):
+        raise ValueError('The quiz service returned an incomplete quiz.')
+    for number, question in enumerate(questions, 1):
+        question['number'] = number
     return questions
+
+
+def generate_questions(topic, difficulty):
+    prompt = generate_quiz_prompt(topic, difficulty)
+    last_status = None
+    for name in model_candidates():
+        try:
+            response = requests.post(
+                f'https://generativelanguage.googleapis.com/v1beta/models/{quote(name, safe="")}:generateContent',
+                headers={'x-goog-api-key': GOOGLE_API_KEY},
+                json={'contents': [{'parts': [{'text': prompt}]}]},
+                timeout=20,
+            )
+        except requests.RequestException:
+            logger.exception('Could not connect to Gemini')
+            raise
+        if response.status_code in {403, 404, 429}:
+            logger.warning('Gemini model %s returned HTTP %s', name, response.status_code)
+            last_status = response.status_code
+            continue
+        response.raise_for_status()
+        try:
+            parts = response.json()['candidates'][0]['content']['parts']
+            text = '\n'.join(part['text'] for part in parts if 'text' in part)
+        except (KeyError, IndexError, TypeError, ValueError) as error:
+            raise ValueError('Gemini returned no quiz content.') from error
+        return parse_quiz_response(text), name
+    raise RuntimeError(f'No configured Gemini model could generate a quiz (HTTP {last_status}).')
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        topic = request.form['topic']
+        topic = request.form.get('topic', '').strip()
         difficulty = request.form.get('difficulty', 'medium')
+        if not topic:
+            return render_template('index.html', error='Enter a topic to continue.'), 400
+        if difficulty not in {'easy', 'medium', 'hard'}:
+            difficulty = 'medium'
         return redirect(url_for('generate_quiz', topic=topic, difficulty=difficulty))
     return render_template('index.html')
 
+
 @app.route('/quiz/<topic>')
 def generate_quiz(topic):
+    if not GOOGLE_API_KEY:
+        return render_template('quiz.html', topic=topic,
+                               error='Quiz generation is not configured. Set GOOGLE_API_KEY on the server.'), 503
     difficulty = request.args.get('difficulty', 'medium')
-    model = get_model()
-
-    if not GOOGLE_API_KEY or model is None:
-        quiz_data = build_fallback_quiz(topic)
-        return render_quiz(topic, quiz_data['questions'], 'Offline fallback')
-
+    if difficulty not in {'easy', 'medium', 'hard'}:
+        difficulty = 'medium'
     try:
-        prompt = generate_quiz_prompt(topic, difficulty=difficulty)
-        response = model.generate_content(prompt)
-        
-        if not response.text:
-            raise ValueError("Empty response from Gemini API")
-            
-        questions = parse_quiz_response(response)
-        
-        if not questions:
-            raise ValueError("Failed to parse quiz questions")
+        questions, model_name = generate_questions(topic, difficulty)
+        return render_template('quiz.html', topic=topic, questions=questions,
+                               quiz_source=f'Gemini ({model_name})')
+    except RuntimeError:
+        return render_template('quiz.html', topic=topic,
+                               error='The quiz service is out of capacity right now. Please try again later or configure a Gemini API project with available quota.'), 503
+    except Exception:
+        logger.exception('Could not generate quiz')
+        return render_template('quiz.html', topic=topic,
+                               error='Quiz generation failed. Please try again shortly.'), 502
 
-        # Prepare properly structured quiz data
-        quiz_data = {
-            'topic': topic,
-            'questions': [
-                {
-                    'number': i+1,
-                    'text': q['question'],
-                    'options': [
-                        {'letter': 'a', 'text': (q['options'][0] if len(q['options']) > 0 else 'Option A')},
-                        {'letter': 'b', 'text': (q['options'][1] if len(q['options']) > 1 else 'Option B')},
-                        {'letter': 'c', 'text': (q['options'][2] if len(q['options']) > 2 else 'Option C')},
-                        {'letter': 'd', 'text': (q['options'][3] if len(q['options']) > 3 else 'Option D')}
-                    ],
-                    'answer': q['answer'] or 'a'
-                }
-                for i, q in enumerate(questions)
-            ]
-        }
-            
-        return render_quiz(topic, quiz_data['questions'], 'Gemini')
-        
-    except Exception as e:
-        quiz_data = build_fallback_quiz(topic)
-        return render_quiz(topic, quiz_data['questions'], 'Offline fallback')
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

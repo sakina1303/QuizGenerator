@@ -1,99 +1,27 @@
-# AI Quiz Generator
+# QAI Quiz Generator
 
-A web application that generates quizzes on any topic using Google's Gemini AI.
+A Flask app that generates five multiple-choice questions using the Gemini API.
 
-## Features
-- Generate 5-question multiple choice quizzes on any topic
-- Clean, responsive interface
-- Powered by Google's Gemini AI
+## Run locally
 
-## Setup
+1. Create a virtual environment and install `requirements.txt`.
+2. Create a `.env` file with `GOOGLE_API_KEY=your_key`.
+3. Run `python app.py` and open http://localhost:5000.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/quiz-generator.git
-   cd quiz-generator
-   ```
+Keep `.env` out of Git. On Render, set `GOOGLE_API_KEY` as a service environment
+variable and deploy the latest commit. The `Procfile` starts Gunicorn.
 
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+## Model and quota behavior
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Set `GOOGLE_MODEL` to prefer a model available to your Gemini API project. The
+app then tries `gemini-3.1-flash-lite`, `gemini-2.5-flash-lite`, and
+`gemini-2.5-flash` if the preferred model returns a quota or unavailable-model
+error. A successful API response is required before a quiz is shown.
 
-4. Create a `.env` file and add your Google API key:
-   ```
-   GOOGLE_API_KEY=your_api_key_here
-   ```
+Model availability and quotas differ by project. If every candidate has zero
+quota, the app shows a short service message. Check your project's active limits
+in Google AI Studio or use a project with available quota. A new API key from the
+same project does not increase that project's quota.
 
-5. Run the application:
-   ```bash
-   python app.py
-   ```
-
-6. Open your browser to `http://localhost:5000`
-
-## Configuration
-- Edit `config.py` for Flask settings
-- The `.env` file stores sensitive information (make sure to add it to `.gitignore`)
-
-## Model configuration
-
-This app uses Google's Generative AI (Gemini). You can control which model is used
-by setting the `GOOGLE_MODEL` environment variable. If it is not set, the app
-will try `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-flash`,
-`gemini-1.5-pro`, then `gemini-pro-latest`.
-
-Notes and tips:
-- The API may return model names prefixed with `models/` (for example `models/gemini-pro-latest`).
-   The app accepts either the short name (`gemini-pro-latest`) or the full name;
-   it will strip a leading `models/` automatically.
-- Some models are embedding-only and won't support text generation. If you get a
-   404 with a message like `not supported for generateContent`, list your available
-   models (see below) and pick a non-embedding model from that list.
-
-Quick commands
-- To set the model temporarily in zsh:
-```bash
-export GEMINI_MODEL=gemini-1.5-flash
-```
-
-- To run the app using the project's virtualenv (recommended):
-```bash
-source venv/bin/activate
-python3 run_app.py
-```
-
-- To list models available to your API key (run inside the same environment where
-   `GOOGLE_API_KEY` is set):
-
-```python
-import os
-from dotenv import load_dotenv
-import google.generativeai as genai
-
-load_dotenv()
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-models = genai.list_models()
-print([getattr(m, 'name', m.get('name', str(m))) if hasattr(m, 'get') or hasattr(m, 'name') else str(m) for m in models])
-```
-
-Security
-- Do NOT commit your `.env` with API keys. If a key has been exposed, rotate it
-   in Google Cloud immediately.
-
-Deployment
-- Set `GOOGLE_API_KEY` as a secret environment variable in your hosting provider
-   so the deployed app can generate quizzes without storing the key in GitHub.
-- Keep `.env` local only; use `.env.example` as the template for sharing config.
-- On Vercel, set `GOOGLE_API_KEY` under Project Settings > Environment Variables
-   and redeploy after saving it.
-
-
-## License
-MIT
+The app uses the server-side `GOOGLE_API_KEY`; do not put a key in browser code
+or commit it to the repository.
