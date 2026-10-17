@@ -1,73 +1,67 @@
 {% extends "base.html" %}
+{% block title %}{% if topic %}{{ topic }} | QAI{% else %}Quiz unavailable | QAI{% endif %}{% endblock %}
+{% block page_class %}quiz-page{% endblock %}
 
 {% block content %}
-    {% if error %}
-        <div class="flash is-error">
-            <p>Error generating quiz: {{ error }}</p>
-            <p><a class="link-inline" href="{{ url_for('index') }}">Try again with another topic</a></p>
+{% if error %}
+<section class="error-section container">
+    <div class="error-card"><span class="error-symbol">!</span><p class="eyebrow">A LITTLE HICCUP</p><h1>Let's try that again.</h1><p>{{ error }}</p><a class="button button-dark" href="{{ url_for('index') }}#builder">Back to the studio <span aria-hidden="true">↗</span></a></div>
+</section>
+{% else %}
+<section class="session-hero">
+    <div class="container session-hero-inner">
+        <a class="back-link" href="{{ url_for('index') }}#builder"><span aria-hidden="true">←</span> Back to studio</a>
+        <div class="session-heading"><div><p class="micro-label"><span class="status-dot"></span> YOUR SESSION IS READY</p><h1>{{ topic }}</h1><p>{{ quiz.summary or 'A fresh set of questions, created just for you.' }}</p></div><div class="session-stamp" aria-hidden="true"><span>QAI</span><i>✳</i></div></div>
+        <div class="session-meta"><span>✳ &nbsp;{{ count }} questions</span><span>◈ &nbsp;{{ difficulty|capitalize }} level</span><span>✦ &nbsp;AI study coach</span></div>
+    </div>
+</section>
+
+<div class="container quiz-layout" id="quiz-app" data-topic="{{ topic }}" data-difficulty="{{ difficulty }}" data-next-topics='{{ quiz.next_topics|tojson }}'>
+    <aside class="session-sidebar" aria-label="Quiz progress">
+        <div class="sidebar-card">
+            <p class="sidebar-overline">YOUR PROGRESS</p>
+            <div class="progress-dial" id="progress-dial"><div><strong id="progress-number">0/{{ count }}</strong><span>answered</span></div></div>
+            <p class="sidebar-helper" id="progress-helper">You're just getting started.</p>
+            <div class="question-jump" aria-label="Jump to question">
+                {% for question in quiz.questions %}<a href="#question-{{ question.number }}" class="jump-dot" data-jump="{{ question.number }}" aria-label="Question {{ question.number }}">{{ question.number }}</a>{% endfor %}
+            </div>
+            <div class="sidebar-divider"></div>
+            <div class="session-timer"><span>SESSION TIME</span><strong id="session-time">00:00</strong></div>
+            <button type="button" class="share-link" id="share-link">↗ &nbsp; Copy session setup</button>
         </div>
-        <div class="quiz-actions">
-            <a class="btn btn-ghost" href="{{ url_for('index') }}">Back to generator</a>
-        </div>
-    {% else %}
-        <section class="quiz-header">
-            <p class="eyebrow">Quiz generated</p>
-            <h2>{{ topic }} quiz</h2>
-            <p class="quiz-subtitle">Select an answer to reveal the correct response. Use this set for warm-ups, lightning talks, or self-study.</p>
-            <p class="quiz-source">Source: {{ quiz_source }}</p>
-        </section>
+        <div class="sidebar-note"><span>✦</span><p><strong>Take your time.</strong> Your study coach will connect the dots after you finish.</p></div>
+    </aside>
 
-        <div class="quiz-list">
-            {% for question in questions %}
-                <article class="quiz-card">
-                    <div class="question-header">
-                        <span class="question-index">Q{{ loop.index }}</span>
-                        <p class="question-text">{{ question.text }}</p>
-                    </div>
-
-                    <div class="options">
-                        {% for option in question.options %}
-                            <div class="option">
-                                <input
-                                    class="sr-only"
-                                    type="radio"
-                                    id="q{{ question.number }}{{ option.letter }}"
-                                    name="q{{ question.number }}"
-                                    value="{{ option.letter }}">
-                                <label class="option-label" for="q{{ question.number }}{{ option.letter }}">
-                                    <span class="option-letter">{{ option.letter }}</span>
-                                    <span class="option-body">{{ option.text }}</span>
-                                </label>
-                            </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="answer-pill">
-                        <span class="answer-label">Answer</span>
-                        <span class="answer-value">{{ question.answer }}</span>
-                    </div>
+    <div class="quiz-main">
+        <div class="quiz-topline"><p>THE QUESTIONS <span>/ {{ '%02d'|format(count) }}</span></p><span>Choose one answer per question</span></div>
+        <form id="quiz-form" novalidate>
+            <div class="question-list">
+                {% for question in quiz.questions %}
+                <article class="question-card" id="question-{{ question.number }}" data-number="{{ question.number }}" data-answer="{{ question.answer }}" data-concept="{{ question.concept }}" data-tip="{{ question.study_tip }}">
+                    <div class="question-top"><span class="question-counter">QUESTION {{ '%02d'|format(question.number) }}</span><span class="question-concept">{{ question.concept }}</span></div>
+                    <fieldset>
+                        <legend>{{ question.text }}</legend>
+                        <div class="answer-list">
+                            {% for option in question.options %}
+                            <label class="answer-choice"><input type="radio" name="q{{ question.number }}" value="{{ option.letter }}"><span class="answer-letter">{{ option.letter|upper }}</span><span class="answer-text">{{ option.text }}</span><span class="answer-indicator" aria-hidden="true"></span></label>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                    <div class="answer-review" hidden><span class="review-kicker">THE TAKEAWAY</span><p>{{ question.explanation }}</p><small>Study focus: {{ question.study_tip }}</small></div>
                 </article>
-            {% endfor %}
-        </div>
+                {% endfor %}
+            </div>
+            <div class="finish-card"><div><p class="eyebrow">READY WHEN YOU ARE</p><h2>Let's see what stuck.</h2><p id="finish-hint">Answer all {{ count }} questions to unlock your results and study plan.</p></div><button type="submit" class="button button-dark" id="finish-button" disabled>See my results <span aria-hidden="true">↗</span></button></div>
+        </form>
 
-        <div class="quiz-actions">
-            <a class="btn btn-secondary" href="{{ url_for('index') }}">Create another quiz</a>
-        </div>
-    {% endif %}
-
-    <script>
-        const cards = document.querySelectorAll('.quiz-card');
-        cards.forEach(card => {
-            const radios = card.querySelectorAll('input[type="radio"]');
-            const answer = card.querySelector('.answer-pill');
-            if (!answer) {
-                return;
-            }
-            radios.forEach(radio => {
-                radio.addEventListener('change', () => {
-                    answer.classList.add('is-visible');
-                });
-            });
-        });
-    </script>
+        <section class="results-card" id="results" hidden aria-live="polite">
+            <div class="results-top"><span class="results-spark" aria-hidden="true">✳</span><p class="eyebrow">YOUR LEARNING SNAPSHOT</p><h2 id="result-title">Nice work.</h2><p id="result-subtitle"></p><div class="result-score"><strong id="score-number">0/0</strong><span id="score-percent">0%</span></div></div>
+            <div class="coach-section"><div class="coach-heading"><span class="coach-heading-icon">✦</span><div><p class="eyebrow">AI STUDY COACH</p><h3>Your next best moves</h3></div></div><p class="coach-intro" id="coach-intro"></p><div class="recommendation-list" id="recommendations"></div></div>
+            <div class="result-actions"><a class="button button-lime" id="focused-practice" href="{{ url_for('index') }}#builder">Practice what I missed <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ request.url }}">Generate a new set</a><button type="button" class="text-button" id="retry-button">Retry this set</button></div>
+        </section>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
+
+{% block scripts %}{% if not error %}<script src="{{ url_for('static', filename='quiz.js') }}" defer></script>{% endif %}{% endblock %}

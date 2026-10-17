@@ -1,36 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QAI</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#171629">
+    <meta name="description" content="QAI turns any topic into an interactive AI-powered study session with feedback and a personal study path.">
+    <title>{% block title %}QAI — Learn with curiosity{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
 </head>
-<body class="page">
-    <div class="page-shell">
-        <header class="app-header">
-            <div class="container header-inner">
-                <div class="brand">
-                    <span class="brand-mark">Q</span>
-                    <div class="brand-copy">
-                        <p class="brand-title">QAI</p>
-                        <p class="brand-subtitle">AI generated quizzes in seconds</p>
-                    </div>
-                </div>
-                <a class="header-cta" href="{{ url_for('index') }}">New quiz</a>
+<body class="{% block page_class %}{% endblock %}">
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container nav-inner">
+                <a class="brand" href="{{ url_for('index') }}" aria-label="QAI home">
+                    <span class="brand-symbol" aria-hidden="true"><span>Q</span><i></i></span>
+                    <span class="brand-name">qai<span class="brand-period">.</span></span>
+                    <span class="brand-divider"></span>
+                    <span class="brand-label">the study studio</span>
+                </a>
+                <nav class="site-nav" aria-label="Main navigation">
+                    <a class="nav-link" href="{{ url_for('index') }}#how-it-works">How it works</a>
+                    <a class="nav-cta" href="{{ url_for('index') }}#builder">Create a quiz <span aria-hidden="true">↗</span></a>
+                </nav>
             </div>
         </header>
-
-        <main class="container content-area">
-            {% block content %}{% endblock %}
-        </main>
-
-        <footer class="app-footer">
+        <main id="main-content">{% block content %}{% endblock %}</main>
+        <footer class="site-footer">
             <div class="container footer-inner">
-                <span>Built with Flask and Gemini</span>
-                <a href="https://ai.google.dev" target="_blank" rel="noopener">Documentation</a>
+                <div class="footer-brand">qai<span>.</span> <small>Made for curious minds.</small></div>
+                <p>Learn a little. Know a lot.</p>
+                <a href="{{ url_for('index') }}#builder">Start a new session <span aria-hidden="true">↗</span></a>
             </div>
         </footer>
     </div>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

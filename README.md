@@ -1,6 +1,20 @@
 # QAI Quiz Generator
 
-A Flask app that generates five multiple-choice questions using the Gemini API.
+A Flask study studio that turns a topic into an interactive quiz and a focused
+learning path using the Gemini API.
+
+## Features
+
+- Choose a topic, optional learning focus, difficulty, and 5, 8, or 10 questions.
+- Take the quiz with live progress, a session timer, and a scored review.
+- Read AI-generated explanations and study tips for every question.
+- Get next-step recommendations based on the concepts missed, or related topics
+  when the set is complete.
+- Start targeted follow-up practice and see recent scores saved in this browser.
+
+Recent scores are stored in local browser storage. No account or database is
+required, and the session setup link generates a new set rather than sharing
+the exact questions.
 
 ## Run locally
 
