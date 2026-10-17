@@ -57,6 +57,31 @@ function addRecommendation(index, title, detail) {
   document.querySelector('#recommendations').append(item);
 }
 
+function addReview(card, picked, showSelected = true) {
+  const item = document.createElement('article');
+  item.className = 'mistake-item';
+  const label = document.createElement('span');
+  label.className = 'mistake-label';
+  label.textContent = `QUESTION ${String(card.dataset.number).padStart(2, '0')} · ${card.dataset.concept}`;
+  const question = document.createElement('h4');
+  question.textContent = card.querySelector('legend').textContent;
+  const selected = document.createElement('p');
+  selected.className = 'mistake-selected';
+  selected.textContent = `Your answer: ${picked.closest('.answer-choice').querySelector('.answer-text').textContent}`;
+  const correct = document.createElement('p');
+  correct.className = 'mistake-correct';
+  correct.textContent = `Correct answer: ${card.querySelector(`input[value="${card.dataset.answer}"]`).closest('.answer-choice').querySelector('.answer-text').textContent}`;
+  const explanation = document.createElement('p');
+  explanation.className = 'mistake-explanation';
+  explanation.textContent = card.querySelector('.answer-review p').textContent;
+  const tip = document.createElement('small');
+  tip.textContent = `Next step: ${card.dataset.tip}`;
+  item.append(label, question);
+  if (showSelected) item.append(selected);
+  item.append(correct, explanation, tip);
+  document.querySelector('#mistake-list').append(item);
+}
+
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   if (cards.some((card) => !selectedAnswer(card))) {
@@ -68,11 +93,16 @@ form.addEventListener('submit', (event) => {
   clearInterval(timer);
   let score = 0;
   const missed = [];
+  const reviewList = document.querySelector('#mistake-list');
+  reviewList.replaceChildren();
   cards.forEach((card) => {
     const picked = selectedAnswer(card);
     const isCorrect = picked.value === card.dataset.answer;
     if (isCorrect) score += 1;
-    else missed.push({ concept: card.dataset.concept, tip: card.dataset.tip });
+    else {
+      missed.push({ concept: card.dataset.concept, tip: card.dataset.tip });
+      addReview(card, picked);
+    }
     card.classList.add('is-reviewed');
     card.querySelector('.answer-review').hidden = false;
     card.querySelectorAll('.answer-choice').forEach((choice) => {
@@ -87,6 +117,15 @@ form.addEventListener('submit', (event) => {
   });
 
   const percent = Math.round(score / total * 100);
+  if (score === total) {
+    document.querySelector('#mistake-heading').textContent = 'Every answer, explained';
+    document.querySelector('#mistake-intro').textContent = 'No mistakes this time. Review the reasoning behind each answer.';
+    cards.forEach((card) => addReview(card, selectedAnswer(card), false));
+  } else {
+    document.querySelector('#mistake-heading').textContent = 'What to revisit';
+    document.querySelector('#mistake-intro').textContent = `${missed.length} ${missed.length === 1 ? 'question needs' : 'questions need'} another look. Here are the right answers and the reasoning behind them.`;
+  }
+  document.querySelector('#review-mistakes').firstChild.textContent = score === total ? 'Review explanations ' : 'Review my mistakes ';
   document.querySelector('#score-number').textContent = `${score}/${total}`;
   document.querySelector('#score-percent').textContent = `${percent}% correct`;
   document.querySelector('#result-title').textContent = score === total ? 'You nailed it.' : percent >= 70 ? 'Looking sharp.' : 'This is how you grow.';
@@ -114,12 +153,10 @@ form.addEventListener('submit', (event) => {
     topics.slice(0, 3).forEach((topic, index) => addRecommendation(index + 1, topic, 'Make this the focus of your next study session.'));
     focus = `Explore ${topics.slice(0, 2).join(' and ')}`;
   }
-  const practiceUrl = new URL('/', window.location.href);
-  practiceUrl.searchParams.set('topic', app.dataset.topic);
+  const practiceUrl = new URL(app.dataset.practiceUrl, window.location.origin);
   practiceUrl.searchParams.set('difficulty', app.dataset.difficulty);
   practiceUrl.searchParams.set('count', '5');
   practiceUrl.searchParams.set('focus', focus.slice(0, 230));
-  practiceUrl.hash = 'builder';
   const practice = document.querySelector('#focused-practice');
   practice.href = practiceUrl.toString();
   if (score === total) practice.firstChild.textContent = 'Explore a new direction ';
@@ -131,6 +168,10 @@ form.addEventListener('submit', (event) => {
     const next = [{ topic: app.dataset.topic, score, total, date: new Date().toISOString() }, ...(Array.isArray(history) ? history : [])].slice(0, 8);
     localStorage.setItem('qai_sessions_v1', JSON.stringify(next));
   } catch { /* Storage is optional. */ }
+});
+
+document.querySelector('#review-mistakes').addEventListener('click', () => {
+  document.querySelector('#mistake-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 document.querySelector('#retry-button').addEventListener('click', () => {

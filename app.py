@@ -91,7 +91,7 @@ def call_gemini(prompt):
             },
             timeout=60,
         )
-        if response.status_code in {403, 404, 429}:
+        if response.status_code in {403, 404, 429, 500, 502, 503, 504}:
             logger.warning('Gemini model %s returned HTTP %s', name, response.status_code)
             continue
         response.raise_for_status()

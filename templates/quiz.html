@@ -16,7 +16,7 @@
     </div>
 </section>
 
-<div class="container quiz-layout" id="quiz-app" data-topic="{{ topic }}" data-difficulty="{{ difficulty }}" data-next-topics='{{ quiz.next_topics|tojson }}'>
+<div class="container quiz-layout" id="quiz-app" data-topic="{{ topic }}" data-difficulty="{{ difficulty }}" data-practice-url="{{ url_for('generate_quiz', topic=topic) }}" data-next-topics='{{ quiz.next_topics|tojson }}'>
     <aside class="session-sidebar" aria-label="Quiz progress">
         <div class="sidebar-card">
             <p class="sidebar-overline">YOUR PROGRESS</p>
@@ -57,7 +57,8 @@
         <section class="results-card" id="results" hidden aria-live="polite">
             <div class="results-top"><span class="results-spark" aria-hidden="true">✳</span><p class="eyebrow">YOUR LEARNING SNAPSHOT</p><h2 id="result-title">Nice work.</h2><p id="result-subtitle"></p><div class="result-score"><strong id="score-number">0/0</strong><span id="score-percent">0%</span></div></div>
             <div class="coach-section"><div class="coach-heading"><span class="coach-heading-icon">✦</span><div><p class="eyebrow">AI STUDY COACH</p><h3>Your next best moves</h3></div></div><p class="coach-intro" id="coach-intro"></p><div class="recommendation-list" id="recommendations"></div></div>
-            <div class="result-actions"><a class="button button-lime" id="focused-practice" href="{{ url_for('index') }}#builder">Practice what I missed <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ request.url }}">Generate a new set</a><button type="button" class="text-button" id="retry-button">Retry this set</button></div>
+            <section class="mistake-section" id="mistake-review" aria-labelledby="mistake-heading"><p class="eyebrow">THE REVIEW</p><h3 id="mistake-heading">What to revisit</h3><p class="mistake-intro" id="mistake-intro"></p><div class="mistake-list" id="mistake-list"></div></section>
+            <div class="result-actions"><button type="button" class="button button-lime" id="review-mistakes">Review my mistakes <span aria-hidden="true">↓</span></button><a class="button button-outline" id="focused-practice" href="{{ url_for('generate_quiz', topic=topic, difficulty=difficulty, count=5) }}">Practice weak spots <span aria-hidden="true">↗</span></a><a class="button button-outline" href="{{ request.url }}">Generate a new set</a><button type="button" class="text-button" id="retry-button">Retry this set</button></div>
         </section>
     </div>
 </div>
