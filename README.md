@@ -40,9 +40,10 @@ variable and deploy the latest commit. The `Procfile` starts Gunicorn.
 ## Model and quota behavior
 
 Set `GOOGLE_MODEL` to prefer a model available to your Gemini API project. The
-app then tries `gemini-3.1-flash-lite`, `gemini-2.5-flash-lite`, and
-`gemini-2.5-flash` if the preferred model returns a quota or unavailable-model
-error. A successful API response is required before a quiz is shown.
+app then tries `gemini-3.5-flash-lite`, `gemini-flash-lite-latest`,
+`gemini-3.5-flash`, `gemini-flash-latest`, and `gemini-3.1-flash-lite`
+if the preferred model returns a quota or unavailable-model error, or times out.
+A successful API response is required before a quiz is shown.
 
 Model availability and quotas differ by project. If every candidate has zero
 quota, the app shows a short service message. Check your project's active limits

@@ -1,6 +1,8 @@
 import io
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+import requests
 
 from pypdf import PdfWriter
 from werkzeug.datastructures import FileStorage
@@ -102,6 +104,18 @@ class StudyFeaturesTests(unittest.TestCase):
             response = self.client.post('/api/tutor', json=payload)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['reply'], 'Plants use light to make food.')
+
+    def test_model_fallback_after_timeout_and_unavailable_model(self):
+        unavailable = Mock(status_code=404)
+        success = Mock(status_code=200)
+        success.json.return_value = {'candidates': [{'content': {'parts': [{'text': '{"ok": true}'}]}}]}
+        with patch.object(quiz_app, 'GOOGLE_API_KEY', 'test'), patch.object(
+                quiz_app, 'model_candidates', return_value=['first', 'second', 'third']), patch.object(
+                quiz_app.requests, 'post', side_effect=[requests.Timeout(), unavailable, success]) as post:
+            response, model = quiz_app.call_gemini('test prompt')
+        self.assertEqual(response, {'ok': True})
+        self.assertEqual(model, 'third')
+        self.assertEqual(post.call_count, 3)
 
 
 if __name__ == '__main__':

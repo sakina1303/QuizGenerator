@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 DEFAULT_MODELS = (
+    'gemini-3.5-flash-lite',
+    'gemini-flash-lite-latest',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
     'gemini-3.1-flash-lite',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-flash',
 )
 DIFFICULTIES = {'easy', 'medium', 'hard'}
 QUESTION_COUNTS = {5, 8, 10}
@@ -94,7 +96,7 @@ def call_gemini(prompt, max_output_tokens=6000):
                         'maxOutputTokens': max_output_tokens,
                     },
                 },
-                timeout=27,
+                timeout=18,
             )
         except requests.RequestException:
             logger.warning('Gemini model %s did not respond', name)
